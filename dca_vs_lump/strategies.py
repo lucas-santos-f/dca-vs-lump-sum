@@ -22,6 +22,8 @@ import numpy as np
 import pandas as pd
 
 MONTHS_PER_YEAR = 12
+# Gaps smaller than this (in %) are rounding noise, e.g. one-month DCA vs lump sum, not a win.
+TIE_TOLERANCE = 1e-9
 
 
 def monthly_rate(annual_rate: float) -> float:
@@ -120,7 +122,7 @@ def summarize(windows: pd.DataFrame) -> Summary:
         windows=len(windows),
         first_start=windows.index[0],
         last_start=windows.index[-1],
-        lump_win_rate=float(100 * (diff > 0).mean()),
+        lump_win_rate=float(100 * (diff > TIE_TOLERANCE).mean()),
         mean_difference=float(diff.mean()),
         median_difference=float(diff.median()),
         lump_worst_return=float(windows["lump_sum_return"].min()),

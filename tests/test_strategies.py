@@ -94,3 +94,8 @@ def test_summary_of_no_windows_is_an_error():
     empty = rolling_windows(RISING, 1000, 1, 1).iloc[0:0]
     with pytest.raises(ValueError, match="No windows"):
         summarize(empty)
+
+
+def test_a_tie_does_not_count_as_a_lump_sum_win():
+    windows = rolling_windows(RISING, 1000, months=1, horizon=2)
+    assert summarize(windows).lump_win_rate == 0
