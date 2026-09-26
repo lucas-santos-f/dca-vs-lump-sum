@@ -125,6 +125,6 @@ def summarize(windows: pd.DataFrame) -> Summary:
         median_difference=float(diff.median()),
         lump_worst_return=float(windows["lump_sum_return"].min()),
         dca_worst_return=float(windows["dca_return"].min()),
-        lump_worst_start=windows["lump_sum_return"].idxmin(),
-        dca_worst_start=windows["dca_return"].idxmin(),
+        lump_worst_start=windows.index[int(windows["lump_sum_return"].argmin())],
+        dca_worst_start=windows.index[int(windows["dca_return"].argmin())],
     )

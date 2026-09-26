@@ -46,7 +46,7 @@ def download_yahoo(ticker: str) -> pd.Series:
     frame = yf.download(ticker, period="max", auto_adjust=True, progress=False, multi_level_index=False)
     if frame.empty:
         raise ValueError(f"Yahoo Finance returned no data for {ticker}")
-    close = frame["Close"]
+    close: pd.Series = frame["Close"]
     close.index = pd.DatetimeIndex(close.index).tz_localize(None)
     return close.rename(ticker)
 
@@ -71,9 +71,7 @@ def download_stooq(ticker: str, session: requests.Session) -> pd.Series:
 
 def save_prices(prices: pd.DataFrame, path: Path = PRICES_FILE) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    out = prices.copy()
-    out.index = out.index.strftime("%Y-%m-%d")
-    out.to_csv(path, index_label="date", float_format="%.4f")
+    prices.to_csv(path, index_label="date", float_format="%.4f", date_format="%Y-%m-%d")
 
 
 def load_prices(path: Path = PRICES_FILE) -> pd.DataFrame:
