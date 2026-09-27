@@ -4,7 +4,7 @@
 
 ![DCA vs Lump Sum dashboard](docs/screenshot.png)
 
-[![tests](https://github.com/Lucas123124124123123/dca-vs-lump-sum/actions/workflows/tests.yml/badge.svg)](https://github.com/Lucas123124124123123/dca-vs-lump-sum/actions/workflows/tests.yml)
+[![tests](https://github.com/lucas-santos-f/dca-vs-lump-sum/actions/workflows/tests.yml/badge.svg)](https://github.com/lucas-santos-f/dca-vs-lump-sum/actions/workflows/tests.yml)
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
@@ -42,7 +42,7 @@ The reason is simple: markets rose in most months, so money kept on the sideline
 ## Quick start
 
 ```bash
-git clone https://github.com/Lucas123124124123123/dca-vs-lump-sum.git
+git clone https://github.com/lucas-santos-f/dca-vs-lump-sum.git
 cd dca-vs-lump-sum
 pip install -r requirements.txt
 streamlit run app.py
