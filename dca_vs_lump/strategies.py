@@ -1,20 +1,8 @@
-"""Lump sum vs dollar-cost averaging (DCA) on a monthly price series.
-
-Conventions used everywhere in this module:
-
-- ``prices`` is a Series of month-end prices with a DatetimeIndex. Money is
-  invested at the close of a month, so month 0 is the start date.
-- Lump sum buys with the whole amount at month 0.
-- DCA splits the amount into ``months`` tranches bought at months
-  0 .. months-1. Money waiting to be invested sits in cash earning
-  ``cash_rate`` per year. Each tranche invests an equal share of the cash
-  still waiting (balance / tranches left), so the interest is invested too
-  and nothing is left in cash after the last tranche. At a 0% rate every
-  tranche is exactly ``amount / months``.
-- Both portfolios are valued at month ``horizon`` (``horizon >= months``).
-"""
-
-from __future__ import annotations
+# Lump sum vs DCA on month-end prices.
+#
+# Money goes in at the close of a month; month 0 is the start date. DCA buys
+# in `months` tranches at months 0..months-1, the cash waiting on the side
+# earns `cash_rate` a year. Both get valued at month `horizon`.
 
 from dataclasses import dataclass
 
@@ -22,16 +10,15 @@ import numpy as np
 import pandas as pd
 
 MONTHS_PER_YEAR = 12
-# Gaps smaller than this (in %) are rounding noise, e.g. one-month DCA vs lump sum, not a win.
+# one-month DCA vs lump sum comes out ~1e-14 apart from float noise, that's a tie
 TIE_TOLERANCE = 1e-9
 
 
 def monthly_rate(annual_rate: float) -> float:
-    """Compound monthly rate equivalent to an annual rate (0.04 -> ~0.00327)."""
     return float((1 + annual_rate) ** (1 / MONTHS_PER_YEAR) - 1)
 
 
-def _check(prices: pd.Series, months: int, horizon: int) -> None:
+def _check(prices, months, horizon):
     if months < 1:
         raise ValueError("DCA needs at least one month")
     if horizon < months:
@@ -40,27 +27,25 @@ def _check(prices: pd.Series, months: int, horizon: int) -> None:
         raise ValueError(f"Need {horizon + 1} monthly prices, got {len(prices)}")
 
 
-def simulate(
-    prices: pd.Series, amount: float, months: int, horizon: int, cash_rate: float = 0.0
-) -> pd.DataFrame:
-    """Month-by-month value of both strategies from ``prices.index[0]``.
-
-    Returns a DataFrame indexed by date with columns ``lump_sum``, ``dca``,
-    ``dca_invested`` (market value of the DCA shares) and ``dca_cash``.
-    """
+def simulate(prices: pd.Series, amount: float, months: int, horizon: int, cash_rate: float = 0.0) -> pd.DataFrame:
+    """Month-by-month value of both strategies starting at prices.index[0]."""
     _check(prices, months, horizon)
     path = prices.iloc[: horizon + 1].to_numpy(dtype=float)
-    growth = 1 + monthly_rate(cash_rate)
+    grow = 1 + monthly_rate(cash_rate)
 
     cash = np.zeros(len(path))
     shares = np.zeros(len(path))
     balance, held = float(amount), 0.0
-    for t, price in enumerate(path):
+    for t, px in enumerate(path):
         if t > 0:
-            balance *= growth
+            balance *= grow
         if t < months:
+            # tranche = amount / months
+            # ^ ignored the interest earned while waiting, so DCA ended with
+            # leftover cash. Splitting what's left over the tranches left
+            # invests the interest too and lands on exactly 0 at the end.
             tranche = balance / (months - t)
-            held += tranche / price
+            held += tranche / px
             balance -= tranche
         cash[t], shares[t] = balance, held
 
@@ -76,25 +61,20 @@ def simulate(
     )
 
 
-def rolling_windows(
-    prices: pd.Series, amount: float, months: int, horizon: int, cash_rate: float = 0.0
-) -> pd.DataFrame:
-    """Run the comparison for every start month that has a full horizon of data.
-
-    One row per start date with the final value of each strategy, their
-    total returns (%) and ``lump_vs_dca``: how much more (or less, if
-    negative) lump sum ended with, as a % of the DCA result.
-    """
-    prices = prices.dropna()
+def rolling_windows(prices, amount, months, horizon, cash_rate=0.0):
+    """One row per possible start month: final value of each strategy and the gap."""
+    prices = prices.dropna()  # months before the fund existed
     _check(prices, months, horizon)
+
     rows = []
-    for start in range(len(prices) - horizon):
-        final = simulate(prices.iloc[start:], amount, months, horizon, cash_rate).iloc[-1]
-        rows.append((prices.index[start], final["lump_sum"], final["dca"]))
+    for i in range(len(prices) - horizon):
+        last = simulate(prices.iloc[i:], amount, months, horizon, cash_rate).iloc[-1]
+        rows.append((prices.index[i], last["lump_sum"], last["dca"]))
 
     out = pd.DataFrame(rows, columns=["start", "lump_sum", "dca"]).set_index("start")
     out["lump_sum_return"] = 100 * (out["lump_sum"] / amount - 1)
     out["dca_return"] = 100 * (out["dca"] / amount - 1)
+    # +5 means lump sum ended with 5% more money than DCA
     out["lump_vs_dca"] = 100 * (out["lump_sum"] / out["dca"] - 1)
     return out
 
@@ -104,17 +84,16 @@ class Summary:
     windows: int
     first_start: pd.Timestamp
     last_start: pd.Timestamp
-    lump_win_rate: float  # % of windows where lump sum ended ahead
-    mean_difference: float  # average lump_vs_dca, %
+    lump_win_rate: float  # %
+    mean_difference: float
     median_difference: float
-    lump_worst_return: float  # worst total return of each strategy over the horizon, %
+    lump_worst_return: float
     dca_worst_return: float
     lump_worst_start: pd.Timestamp
     dca_worst_start: pd.Timestamp
 
 
 def summarize(windows: pd.DataFrame) -> Summary:
-    """Headline numbers from the output of :func:`rolling_windows`."""
     if windows.empty:
         raise ValueError("No windows to summarize")
     diff = windows["lump_vs_dca"]
