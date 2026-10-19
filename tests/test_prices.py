@@ -17,32 +17,32 @@ def daily(values, start):
     return pd.Series(values, index=pd.bdate_range(start, periods=len(values)), dtype=float)
 
 
-def test_to_monthly_keeps_the_last_close_of_each_month():
+def test_to_monthly():
     prices = daily(range(1, 61), "2024-01-01")  # Jan 1 .. Mar 22 on business days
     monthly = to_monthly(prices, today=date(2024, 6, 1))
     assert list(monthly.index.strftime("%Y-%m-%d")) == ["2024-01-31", "2024-02-29", "2024-03-31"]
     assert monthly.iloc[0] == 23  # Jan 2024 has 23 business days
 
 
-def test_to_monthly_drops_the_month_in_progress():
+def test_to_monthly_drops_current_month():
     prices = daily(range(1, 61), "2024-01-01")
     monthly = to_monthly(prices, today=date(2024, 3, 22))
     assert monthly.index[-1] == pd.Timestamp("2024-02-29")
 
 
-def test_parse_stooq_csv_reads_the_close_column():
+def test_stooq_csv():
     close = parse_stooq_csv(STOOQ_CSV, "SPY")
     assert close.name == "SPY"
     assert close.loc["2024-02-29"] == 102.0
     assert len(close) == 4
 
 
-def test_parse_stooq_rejects_a_non_csv_answer():
+def test_stooq_captcha_page():
     with pytest.raises(ValueError, match="did not return a CSV"):
         parse_stooq_csv("<!DOCTYPE html><html>verify you are human</html>", "SPY")
 
 
-def test_saved_prices_load_back_unchanged(tmp_path):
+def test_csv_roundtrip(tmp_path):
     prices = pd.DataFrame(
         {"SPY": [1.5, 2.25], "GLD": [float("nan"), 3.0]},
         index=pd.to_datetime(["2024-01-31", "2024-02-29"]),
