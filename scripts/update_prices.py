@@ -1,18 +1,9 @@
 """Refresh data/monthly_prices.csv.
 
-Usage:
-    python scripts/update_prices.py              # every ticker
-    python scripts/update_prices.py SPY QQQ      # some tickers
-    python scripts/update_prices.py --file SPY spy_us_d.csv
-        # import a daily CSV saved from stooq.com in a browser
-
-Prices come from Yahoo Finance, adjusted for dividends. If Yahoo fails for a
-ticker, Stooq is tried next; Stooq prices are not adjusted for dividends,
-which the script reports so the difference is never silent. A ticker that
-fails on both keeps its previous snapshot.
+    python scripts/update_prices.py            # every fund
+    python scripts/update_prices.py SPY GLD    # just these
+    python scripts/update_prices.py --file SPY spy_us_d.csv   # daily CSV saved from stooq.com
 """
-
-from __future__ import annotations
 
 import argparse
 import sys
@@ -24,7 +15,7 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from dca_vs_lump.prices import (
+from dca_vs_lump.prices import (  # noqa: E402
     PRICES_FILE,
     TICKERS,
     download_stooq,
@@ -36,7 +27,7 @@ from dca_vs_lump.prices import (
 )
 
 
-def fetch(ticker: str, session: requests.Session) -> pd.Series | None:
+def fetch(ticker, session):
     try:
         return download_yahoo(ticker)
     except (ValueError, KeyError, requests.RequestException) as exc:
@@ -50,13 +41,11 @@ def fetch(ticker: str, session: requests.Session) -> pd.Series | None:
     return daily
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-    parser.add_argument("tickers", nargs="*", help="tickers to refresh (default: all)")
-    parser.add_argument("--file", nargs=2, metavar=("TICKER", "PATH"), help="import a Stooq daily CSV")
-    args = parser.parse_args()
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("tickers", nargs="*")
+    ap.add_argument("--file", nargs=2, metavar=("TICKER", "PATH"))
+    args = ap.parse_args()
 
     prices = load_prices() if PRICES_FILE.exists() else pd.DataFrame()
     today = date.today()

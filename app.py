@@ -1,7 +1,3 @@
-"""Streamlit front end: invest a lump sum now, or spread it over a few months?"""
-
-from __future__ import annotations
-
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -22,12 +18,13 @@ def get_prices() -> pd.DataFrame:
     return load_prices()
 
 
+# a few hundred simulate() calls per rerun, without the cache every slider tick lags
 @st.cache_data
 def get_windows(ticker: str, amount: float, months: int, horizon: int, cash_rate: float) -> pd.DataFrame:
     return rolling_windows(get_prices()[ticker], amount, months, horizon, cash_rate)
 
 
-def base_layout(fig: go.Figure, height: int) -> go.Figure:
+def base_layout(fig, height):
     fig.update_layout(
         height=height,
         margin=dict(l=8, r=8, t=8, b=8),
@@ -67,6 +64,7 @@ def path_chart(path: pd.DataFrame, amount: float) -> go.Figure:
 
 
 def histogram(diff: pd.Series, chosen: float) -> go.Figure:
+    # symmetric bins around 0 so the lump/DCA split falls on a bin edge
     edge = max(abs(diff.min()), abs(diff.max()))
     size = max(edge / 25, 0.5)
     bins = dict(start=-size * (edge // size + 1), end=size * (edge // size + 1), size=size)
@@ -114,7 +112,7 @@ def difference_by_start(diff: pd.Series, chosen: pd.Timestamp) -> go.Figure:
     return base_layout(fig, 340)
 
 
-def signed(value: float) -> str:
+def signed(value):
     return f"{value:+.1f}%"
 
 
@@ -155,7 +153,7 @@ if len(series) <= horizon:
     st.info(f"{ticker} doesn't have {years} years of history yet. Pick a shorter period.")
     st.stop()
 
-if months == 1:
+if months == 1:  # same thing as lump sum, every window would be a tie
     st.info("Spread over one month, DCA is the same as investing everything at once. Pick 2 months or more.")
     st.stop()
 
